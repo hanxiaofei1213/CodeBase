@@ -59,6 +59,16 @@ namespace easy {
             strRelativePath = szAbsolutePath;
             return TRUE;
         }
+
+        // »ñÈ¡tempÄ¿Â¼
+        static CString getTempPath() {
+            WCHAR szPath[MAX_PATH] = { 0 };
+            if (::GetTempPath(MAX_PATH, szPath) == 0) {
+                return L"";
+            }
+
+            return CString(szPath);
+        }
     };
 };
 

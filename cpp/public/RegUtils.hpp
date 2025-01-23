@@ -6,30 +6,98 @@
 //////////////////////////////////////////////////////////////////////////
 #include <atlstr.h>
 #include <map>
+#include <vector>
 
 namespace easy {
 class RegUtils {
 public:
 	// 查询注册表函数
-	static CString queryRegValue(HKEY hKey, LPCTSTR lpszPath, LPCTSTR lpszKey) {
-		if (lpszPath == NULL || lpszKey == NULL) {
-			return L"";
-		}
+    static CString queryRegValue(HKEY hKey, LPCTSTR lpszPath, LPCTSTR lpszKey) {
+        if (lpszPath == NULL || lpszKey == NULL) {
+            return L"";
+        }
 
-		CRegKey regKey;
-		if (ERROR_SUCCESS != regKey.Open(hKey, lpszPath, KEY_READ | KEY_WOW64_32KEY)) {
-			return L"";
-		}
+        CRegKey regKey;
+        if (ERROR_SUCCESS != regKey.Open(hKey, lpszPath, KEY_READ | KEY_WOW64_32KEY)) {
+            return L"";
+        }
 
-		const int BUFFER_SIZE = 2048;
-		TCHAR buffer[BUFFER_SIZE] = { 0 };
-		ULONG uChars = BUFFER_SIZE;
-		if (ERROR_SUCCESS != regKey.QueryStringValue(lpszKey, buffer, &uChars)) {
-			return L"";
-		}
+        ULONG uChars = 0;
+        LONG lResult = regKey.QueryStringValue(lpszKey, nullptr, &uChars);
+        if (lResult != ERROR_SUCCESS || uChars == 0) {
+            return L"";
+        }
 
-		return buffer;
+        std::vector<TCHAR> buffer(uChars);
+        if (ERROR_SUCCESS != regKey.QueryStringValue(lpszKey, buffer.data(), &uChars)) {
+            return L"";
+        }
+
+        return CString(buffer.data());
 	}
+
+    // 查询注册表函数
+	static DWORD queryDWordRegValue(HKEY hKey, LPCTSTR lpszPath, LPCTSTR lpszKey) {
+        if (lpszPath == NULL || lpszKey == NULL) {
+            return -1;
+        }
+
+        CRegKey regKey;
+        if (ERROR_SUCCESS != regKey.Open(hKey, lpszPath, KEY_READ | KEY_WOW64_32KEY)) {
+            return -1;
+        }
+
+        DWORD dwRes = 0;
+        if (ERROR_SUCCESS != regKey.QueryDWORDValue(lpszKey, dwRes)) {
+            return -1;
+        }
+
+        return dwRes;
+	}
+
+    // 写入注册表
+    static bool saveRegValue(HKEY hKey, LPCTSTR lpszPath, LPCTSTR lpszKey, LPCTSTR lpszValue) {
+        if (lpszPath == NULL || lpszKey == NULL || lpszValue == NULL) {
+            return false;
+        }
+
+        CRegKey regKey;
+        LONG lResult = regKey.Open(hKey, lpszPath, KEY_WRITE);
+        if (ERROR_SUCCESS != lResult) {
+            lResult = regKey.Create(hKey, lpszPath);
+            if (ERROR_SUCCESS != lResult) {
+                return false;
+            }
+        }
+
+        if (ERROR_SUCCESS != regKey.SetStringValue(lpszKey, lpszValue)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    // 写入注册表
+    static bool saveRegDwordValue(HKEY hKey, LPCTSTR lpszPath, LPCTSTR lpszKey, DWORD dwValue) {
+        if (lpszPath == NULL || lpszKey == NULL) {
+            return false;
+        }
+
+        CRegKey regKey;
+        LONG lResult = regKey.Open(hKey, lpszPath, KEY_WRITE);
+        if (ERROR_SUCCESS != lResult) {
+            lResult = regKey.Create(hKey, lpszPath);
+            if (ERROR_SUCCESS != lResult) {
+                return false;
+            }
+        }
+
+        if (ERROR_SUCCESS != regKey.SetDWORDValue(lpszKey, dwValue)) {
+            return false;
+        }
+
+        return true;
+    }
 
 	// 遍历注册表，获取子项
 	static std::map<CString, CString> enumRegKey(HKEY hKey, LPCTSTR lpszPath) {
